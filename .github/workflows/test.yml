@@ -1,0 +1,46 @@
+name: CI / Recent Activity
+
+on:
+  schedule:
+    - cron: '0 */2 * * *'
+  workflow_dispatch:
+
+jobs:
+  update_activity:
+    name: Update Logs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Add Activity to Readme
+        uses: offensive-vk/auto-user-activity@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.CLASSIC_GH_TOKEN || secrets.BOT_TOKEN }}
+        with:
+          COMMIT_NAME: Hamster [bot]
+          COMMIT_EMAIL: TheHamsterBot@outlook.com
+          COMMIT_MSG: |
+            🧑‍💻 Updated Recent Activity in Readme
+
+
+            Signed-off-by: Hamster [bot] <TheHamsterBot@outlook.com>
+            Co-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          MAX_LINES: 15
+
+      - name: Add Latest Activity to File
+        uses: offensive-vk/auto-user-activity@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.CLASSIC_GH_TOKEN || secrets.BOT_TOKEN }}
+        with:
+          COMMIT_NAME: Hamster [bot]
+          COMMIT_EMAIL: TheHamsterBot@outlook.com
+          COMMIT_MSG: |
+            🧑‍💻 Updated Recent Activity
+
+
+            Signed-off-by: Hamster [bot] <TheHamsterBot@outlook.com>
+            Co-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          MAX_LINES: 150
+          TARGET_FILE: './RECENT.md'

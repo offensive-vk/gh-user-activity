@@ -1,0 +1,23 @@
+{
+  "name": "auto-user-activity",
+  "version": "5.0.0",
+  "description": "Fetch and Update the recent user activity of a github user",
+  "main": "index.js",
+  "keywords": [],
+  "author": "Vedansh",
+  "license": "MIT",
+  "scripts": {
+    "format:check": "prettier --check index.js",
+    "format": "prettier --write index.js",
+    "build": "ncc build index.js -o dist",
+    "buildx": "esbuild index.js --bundle --platform=node --outfile=dist/index.js"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "actions-toolkit": "^6.0.1"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1",
+    "prettier": "^3.2.5"
+  }
+}
