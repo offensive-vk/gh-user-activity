@@ -17,6 +17,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
         with:
+          token: ${{ secrets.BOT_TOKEN }}
           committer: Hamster [bot]
           committer-email: TheHamsterBot@outlook.com
           commit-msg: |
@@ -26,4 +27,4 @@ jobs:
             Signed-off-by: Hamster [bot] <TheHamsterBot@outlook.com>
             Co-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           max-lines: 150
-          target-file: './RECENT.md'
+          target-file: 'RECENT.md'
