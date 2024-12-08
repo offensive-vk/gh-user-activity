@@ -9,7 +9,7 @@ const COMMIT_MSG = core.getInput("commit-msg");
 const MAX_LINES = core.getInput("max-lines");
 const TARGET_FILE = core.getInput("target-file");
 const EMPTY_COMMIT_MSG = core.getInput("empty-commit-msg");
-
+const GITHUB_TOKEN = core.getInput("token", {required: true});
 /**
  * Returns the sentence case representation
  * @param {String} str - the string
