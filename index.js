@@ -1,17 +1,28 @@
 const core = require("@actions/core");
+const github = require("@actions/github");
+const { owner: contextOwner, repo: contextRepo } = github.context.repo;
+const OWNER = contextOwner;
+const REPO = contextRepo;
 const fs = require("fs");
 const { spawn } = require("child_process");
 const { Toolkit } = require("actions-toolkit");
-const GH_USERNAME = core.getInput("username");
+const GH_USERNAME = core.getInput("username") || OWNER;
 const COMMIT_NAME = core.getInput("committer");
 const COMMIT_EMAIL = core.getInput("committer-email");
 const COMMIT_MSG = core.getInput("commit-msg");
 const MAX_LINES = parseInt(core.getInput("max-lines"), 10);
 const TARGET_FILE = core.getInput("target-file");
 const EMPTY_COMMIT_MSG = core.getInput("empty-commit-msg");
-const GITHUB_TOKEN = core.getInput("token") || process.env.GITHUB_TOKEN;
+const TOKEN = core.getInput("token") || process.env.GITHUB_TOKEN;
 const DEBUG = core.getInput("debug") === "true";
-core.debug(`Using token: ${GITHUB_TOKEN}`);
+core.debug(`Using token: ${TOKEN}\n Debug: ${DEBUG}\n`);
+
+/**
+ * Returns the sentence case representation
+ * @param {String} str - the string
+ * @returns {String}
+ */
+const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
 /**
  * Executes a shell command
@@ -169,10 +180,3 @@ Toolkit.run(
     secrets: [],
   },
 );
-
-/**
- * Returns the sentence case representation
- * @param {String} str - the string
- * @returns {String}
- */
-const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);

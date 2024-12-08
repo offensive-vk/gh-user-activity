@@ -20,7 +20,7 @@ RUN pnpm i
 COPY . .
 
 # Build the Project
-RUN pnpm run build
+RUN pnpm run buildx
 
 # Set the default command to run the action
 CMD ["sleep", "infinity"]
