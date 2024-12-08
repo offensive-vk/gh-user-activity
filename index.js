@@ -165,7 +165,7 @@ Toolkit.run(
     tools.exit.success("Readme or Markdown Changes Committed.");
   },
   {
-    event: [],
+    event: ["push", "schedule", "workflow_dispatch", "workflow_call"],
     secrets: [],
   },
 );
