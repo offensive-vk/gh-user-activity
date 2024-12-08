@@ -36656,7 +36656,7 @@ Toolkit.run(
   },
   {
     event: ["push", "schedule", "workflow_dispatch", "workflow_call"],
-    secrets: []
+    secrets: ["GITHUB_TOKEN" || TOKEN]
   }
 );
 /*! Bundled license information:
