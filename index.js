@@ -10,46 +10,8 @@ const COMMIT_MSG = core.getInput("commit-msg");
 const MAX_LINES = parseInt(core.getInput("max-lines"), 10); // Ensure it's a number
 const TARGET_FILE = core.getInput("target-file");
 const EMPTY_COMMIT_MSG = core.getInput("empty-commit-msg");
-const GITHUB_TOKEN = core.getInput("token");
-
-/**
- * Returns the sentence case representation
- * @param {String} str - the string
- * @returns {String}
- */
-const capitalize = (str) => str.slice(0, 1).toUpperCase() + str.slice(1);
-
-/**
- * Returns a URL in markdown format for PR's and issues
- * @param {Object | String} item - holds information concerning the issue/PR
- * @returns {String}
- */
-const toUrlFormat = (item) => {
-  if (typeof item !== "object") {
-    return `[${item}](https://github.com/${item})`;
-  }
-
-  if (item.payload) {
-    if (item.payload.comment) {
-      return `[#${item.payload.issue.number}](${item.payload.comment.html_url})`;
-    }
-
-    if (item.payload.issue) {
-      return `[#${item.payload.issue.number}](${item.payload.issue.html_url})`;
-    }
-
-    if (item.payload.pull_request) {
-      return `[#${item.payload.pull_request.number}](${item.payload.pull_request.html_url})`;
-    }
-
-    if (item.payload.release) {
-      const release = item.payload.release.name || item.payload.release.tag_name;
-      return `[${release}](${item.payload.release.html_url})`;
-    }
-  }
-
-  return `[Unknown](#)`; // Default case
-};
+const GITHUB_TOKEN = core.getInput("token") || process.env.GITHUB_TOKEN;
+const DEBUG = core.getInput("debug") === "true";
 
 /**
  * Executes a shell command
@@ -64,13 +26,8 @@ const exec = (cmd, args = []) =>
     let stdout = "";
     let stderr = "";
 
-    if (app.stdout) {
-      app.stdout.on("data", (data) => (stdout += data.toString()));
-    }
-
-    if (app.stderr) {
-      app.stderr.on("data", (data) => (stderr += data.toString()));
-    }
+    app.stdout.on("data", (data) => (stdout += data.toString()));
+    app.stderr.on("data", (data) => (stderr += data.toString()));
 
     app.on("close", (code) => {
       if (code !== 0 && !stdout.includes("nothing to commit")) {
@@ -122,7 +79,7 @@ const createEmptyCommit = async () => {
   if (diffInDays > 50) {
     core.info("Creating an empty commit to keep workflow active");
     await commitFile(true);
-    return "Empty commit pushed";
+    return "Empty Commit";
   }
 
   return "No activity found. Leaving README unchanged.";
@@ -133,9 +90,7 @@ const createEmptyCommit = async () => {
  */
 const serializers = {
   IssueCommentEvent: (item) => {
-    return `🗣 Commented on ${toUrlFormat(item)} in ${toUrlFormat(
-      item.repo?.name || "unknown repository",
-    )}`;
+    return `🗣 Commented on [#${item.payload.issue.number}](${item.payload.comment.html_url}) in ${item.repo.name}`;
   },
   IssuesEvent: (item) => {
     const emojiMap = {
@@ -144,21 +99,15 @@ const serializers = {
       closed: "🔒",
     };
     const emoji = emojiMap[item.payload.action] || "";
-    return `${emoji} ${capitalize(item.payload.action)} issue ${toUrlFormat(
-      item,
-    )} in ${toUrlFormat(item.repo?.name || "unknown repository")}`;
+    return `${emoji} ${capitalize(item.payload.action)} issue [#${item.payload.issue.number}](${item.payload.issue.html_url}) in ${item.repo.name}`;
   },
   PullRequestEvent: (item) => {
     const action = item.payload.pull_request.merged ? "🎉 Merged" : `${item.payload.action}`;
     const emoji = item.payload.action === "opened" ? "💪" : "❌";
-    return `${emoji} ${capitalize(action)} PR ${toUrlFormat(item)} in ${toUrlFormat(
-      item.repo?.name || "unknown repository",
-    )}`;
+    return `${emoji} ${capitalize(action)} PR [#${item.payload.pull_request.number}](${item.payload.pull_request.html_url}) in ${item.repo.name}`;
   },
   ReleaseEvent: (item) => {
-    return `🚀 ${capitalize(item.payload.action)} release ${toUrlFormat(
-      item,
-    )} in ${toUrlFormat(item.repo?.name || "unknown repository")}`;
+    return `🚀 ${capitalize(item.payload.action)} release [${item.payload.release.tag_name}](${item.payload.release.html_url}) in ${item.repo.name}`;
   },
 };
 
@@ -170,12 +119,8 @@ Toolkit.run(
     tools.log.debug(`Getting activity for ${GH_USERNAME}`);
 
     const github = tools.github;
-    github.authenticate({
-      type: "token",
-      token: GITHUB_TOKEN,
-    });
-    
-    const events = await tools.github.activity.listPublicEventsForUser({
+
+    const events = await github.activity.listPublicEventsForUser({
       username: GH_USERNAME,
       per_page: 100,
     });
@@ -183,9 +128,9 @@ Toolkit.run(
     tools.log.debug(`Activity for ${GH_USERNAME}, ${events.data.length} events found.`);
 
     const content = events.data
-      .filter((event) => serializers.hasOwnProperty(event.type)) // Filter interesting events
-      .slice(0, MAX_LINES) // Limit lines
-      .map((item) => serializers[item.type](item)); // Serialize content
+      .filter((event) => serializers.hasOwnProperty(event.type))
+      .slice(0, MAX_LINES)
+      .map((item) => serializers[item.type](item));
 
     let readmeContent;
     try {
@@ -202,17 +147,12 @@ Toolkit.run(
       (line) => line.trim() === "<!--END_SECTION:activity-->",
     );
 
-    if (startIdx === -1) {
-      return tools.exit.failure("Couldn't find <!--START_SECTION:activity--> comment.");
+    if (startIdx === -1 || endIdx === -1) {
+      return tools.exit.failure("Couldn't find activity section comments.");
     }
 
     const newContent = content.map((line, idx) => `${idx + 1}. ${line}`).join("\n");
-    if (startIdx !== -1 && endIdx === -1) {
-      readmeContent.splice(startIdx + 1, 0, ...content.map((line, idx) => `${idx + 1}. ${line}`));
-      readmeContent.splice(startIdx + content.length + 1, 0, "<!--END_SECTION:activity-->");
-    } else {
-      readmeContent.splice(startIdx + 1, endIdx - startIdx - 1, ...content);
-    }
+    readmeContent.splice(startIdx + 1, endIdx - startIdx - 1, newContent);
 
     fs.writeFileSync(`./${TARGET_FILE}`, readmeContent.join("\n"));
 
@@ -222,10 +162,17 @@ Toolkit.run(
       return tools.exit.failure(`Failed to push changes: ${err.message}`);
     }
 
-    tools.exit.success("README updated and changes pushed.");
+    tools.exit.success("Readme or Markdown Changes Committed.");
   },
   {
     event: ["schedule", "workflow_dispatch"],
-    secrets: ["GITHUB_TOKEN"],
+    secrets: [GITHUB_TOKEN],
   },
 );
+
+/**
+ * Returns the sentence case representation
+ * @param {String} str - the string
+ * @returns {String}
+ */
+const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
