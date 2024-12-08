@@ -3,6 +3,9 @@ description: Fetch and Updates Your Readme Markdown with the Recent GitHub activ
 author: offensive-vk
 
 inputs:
+  token:
+    description: "Your Github PAT or Auth Token"
+    required: false
   username:
     description: "Your GitHub username"
     default: ${{ github.repository_owner }}
