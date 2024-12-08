@@ -11,20 +11,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Add Latest Activity to File
+      - name: Add Activity to File
         uses: ./
-        env:
-          GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
         with:
           token: ${{ secrets.BOT_TOKEN }}
-          committer: Hamster [bot]
-          committer-email: TheHamsterBot@outlook.com
-          commit-msg: |
-            🧑‍💻 Updated Recent Activity
-
-
-            Signed-off-by: Hamster [bot] <TheHamsterBot@outlook.com>
-            Co-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          max-lines: 150
+          committer: "Hamster [bot]"
+          committer-email: "TheHamsterBot@outlook.com"
+          commit-msg: "Updated Recent Activity"
+          max-lines: 100
           target-file: 'RECENT.md'
