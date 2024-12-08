@@ -166,7 +166,7 @@ Toolkit.run(
   },
   {
     event: [],
-    secrets: [GITHUB_TOKEN],
+    secrets: [],
   },
 );
 
