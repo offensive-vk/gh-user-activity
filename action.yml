@@ -3,6 +3,9 @@ description: Fetch and Updates Your Readme Markdown with the Recent GitHub activ
 author: offensive-vk
 
 inputs:
+  token:
+    description: "Your Github PAT or Auth Token"
+    required: false
   username:
     description: "Your GitHub username"
     default: ${{ github.repository_owner }}
@@ -37,5 +40,6 @@ branding:
   icon: activity
 
 runs:
-  using: node20
-  main: dist/index.js
+  using: 'node20'
+  main: 'dist/index.js'
+  post: 'dist/index.js'

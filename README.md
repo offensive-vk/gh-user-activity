@@ -4,8 +4,9 @@ Fetch and Updates Your Readme Markdown with the Recent GitHub activity of a gith
 
 ## Instructions
 
-- Add the comment `<!--START_SECTION:activity-->` (entry point) within `README.md`.
-- Add the comment `<!--END_SECTION:activity-->` (exit point) withing the  `README.md`.
+- Add the comment `<!--START_SECTION:activity-->` (entry point) within the `README.md`.
+
+- Add the comment `<!--END_SECTION:activity-->` (exit point) withing the `README.md`.
 
 ```yml
 name: Update Activity

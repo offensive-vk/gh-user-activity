@@ -2,20 +2,21 @@ const core = require("@actions/core");
 const fs = require("fs");
 const { spawn } = require("child_process");
 const { Toolkit } = require("actions-toolkit");
+
 const GH_USERNAME = core.getInput("username");
 const COMMIT_NAME = core.getInput("committer");
 const COMMIT_EMAIL = core.getInput("committer-email");
 const COMMIT_MSG = core.getInput("commit-msg");
-const MAX_LINES = core.getInput("max-lines");
+const MAX_LINES = parseInt(core.getInput("max-lines"), 10); // Ensure it's a number
 const TARGET_FILE = core.getInput("target-file");
 const EMPTY_COMMIT_MSG = core.getInput("empty-commit-msg");
+const GITHUB_TOKEN = core.getInput("token");
 
 /**
  * Returns the sentence case representation
  * @param {String} str - the string
  * @returns {String}
  */
-
 const capitalize = (str) => str.slice(0, 1).toUpperCase() + str.slice(1);
 
 /**
@@ -27,79 +28,83 @@ const toUrlFormat = (item) => {
   if (typeof item !== "object") {
     return `[${item}](https://github.com/${item})`;
   }
-  if (Object.hasOwnProperty.call(item.payload, "comment")) {
-    return `[#${item.payload.issue.number}](${item.payload.comment.html_url})`;
-  }
-  if (Object.hasOwnProperty.call(item.payload, "issue")) {
-    return `[#${item.payload.issue.number}](${item.payload.issue.html_url})`;
-  }
-  if (Object.hasOwnProperty.call(item.payload, "pull_request")) {
-    return `[#${item.payload.pull_request.number}](${item.payload.pull_request.html_url})`;
+
+  if (item.payload) {
+    if (item.payload.comment) {
+      return `[#${item.payload.issue.number}](${item.payload.comment.html_url})`;
+    }
+
+    if (item.payload.issue) {
+      return `[#${item.payload.issue.number}](${item.payload.issue.html_url})`;
+    }
+
+    if (item.payload.pull_request) {
+      return `[#${item.payload.pull_request.number}](${item.payload.pull_request.html_url})`;
+    }
+
+    if (item.payload.release) {
+      const release = item.payload.release.name || item.payload.release.tag_name;
+      return `[${release}](${item.payload.release.html_url})`;
+    }
   }
 
-  if (Object.hasOwnProperty.call(item.payload, "release")) {
-    const release = item.payload.release.name || item.payload.release.tag_name;
-    return `[${release}](${item.payload.release.html_url})`;
-  }
+  return `[Unknown](#)`; // Default case
 };
 
 /**
- * Execute shell command
+ * Executes a shell command
  * @param {String} cmd - root command
  * @param {String[]} args - args to be passed along with
- *
- * @returns {Promise<void>}
+ * @returns {Promise<String>}
  */
-
 const exec = (cmd, args = []) =>
   new Promise((resolve, reject) => {
     const app = spawn(cmd, args);
 
     let stdout = "";
+    let stderr = "";
+
     if (app.stdout) {
-      app.stdout.on("data", (data) => {
-        stdout += data.toString();
-      });
+      app.stdout.on("data", (data) => (stdout += data.toString()));
     }
 
-    let stderr = "";
     if (app.stderr) {
-      app.stderr.on("data", (data) => {
-        stderr += data.toString();
-      });
+      app.stderr.on("data", (data) => (stderr += data.toString()));
     }
 
     app.on("close", (code) => {
       if (code !== 0 && !stdout.includes("nothing to commit")) {
-        return reject(new Error(`Exit code: ${code}\n${stdout}`));
+        return reject(new Error(`Command failed with code ${code}: ${stderr}`));
       }
-      return resolve(stdout);
+      resolve(stdout);
     });
 
-    app.on("error", () => reject(new Error(`Exit code: ${code}\n${stderr}`)));
+    app.on("error", (err) => reject(new Error(`Process error: ${err.message}`)));
   });
 
 /**
- * Make a commit
+ * Makes a commit
+ * @param {Boolean} emptyCommit - whether to create an empty commit
  * @returns {Promise<void>}
  */
-
 const commitFile = async (emptyCommit = false) => {
-  await exec("git", ["config", "--global", "user.email", COMMIT_EMAIL]);
-  await exec("git", ["config", "--global", "user.name", COMMIT_NAME]);
+  await exec("git", ["config", "user.email", COMMIT_EMAIL]); // Local configuration
+  await exec("git", ["config", "user.name", COMMIT_NAME]);
+
   if (emptyCommit) {
     await exec("git", ["commit", "--allow-empty", "-m", EMPTY_COMMIT_MSG]);
   } else {
     await exec("git", ["add", TARGET_FILE]);
     await exec("git", ["commit", "-m", COMMIT_MSG]);
   }
+
   await exec("git", ["push"]);
 };
 
 /**
- * Creates an empty commit if no activity has been detected for over 50 days
+ * Creates an empty commit if no activity is detected for over 50 days
  * @returns {Promise<void>}
- * */
+ */
 const createEmptyCommit = async () => {
   const lastCommitDate = await exec("git", [
     "--no-pager",
@@ -109,185 +114,115 @@ const createEmptyCommit = async () => {
   ]);
 
   const commitDate = new Date(parseInt(lastCommitDate, 10) * 1000);
-  const diffInDays = Math.round(
-    (new Date() - commitDate) / (1000 * 60 * 60 * 24),
-  );
+  const diffInDays = Math.round((new Date() - commitDate) / (1000 * 60 * 60 * 24));
 
   core.debug(`Last commit date: ${commitDate}`);
   core.debug(`Difference in days: ${diffInDays}`);
 
   if (diffInDays > 50) {
-    core.info("Create empty commit to keep workflow active");
+    core.info("Creating an empty commit to keep workflow active");
     await commitFile(true);
     return "Empty commit pushed";
   }
 
-  return "No PullRequest/Issue/IssueComment/Release events found. Leaving README unchanged with previous activity";
+  return "No activity found. Leaving README unchanged.";
 };
 
+/**
+ * Serializers for activity types
+ */
 const serializers = {
   IssueCommentEvent: (item) => {
     return `🗣 Commented on ${toUrlFormat(item)} in ${toUrlFormat(
-      item.repo.name,
+      item.repo?.name || "unknown repository",
     )}`;
   },
   IssuesEvent: (item) => {
-    let emoji = "";
-
-    switch (item.payload.action) {
-      case "opened":
-        emoji = "❗";
-        break;
-      case "reopened":
-        emoji = "🔓";
-        break;
-      case "closed":
-        emoji = "🔒";
-        break;
-    }
-
+    const emojiMap = {
+      opened: "❗",
+      reopened: "🔓",
+      closed: "🔒",
+    };
+    const emoji = emojiMap[item.payload.action] || "";
     return `${emoji} ${capitalize(item.payload.action)} issue ${toUrlFormat(
       item,
-    )} in ${toUrlFormat(item.repo.name)}`;
+    )} in ${toUrlFormat(item.repo?.name || "unknown repository")}`;
   },
   PullRequestEvent: (item) => {
+    const action = item.payload.pull_request.merged ? "🎉 Merged" : `${item.payload.action}`;
     const emoji = item.payload.action === "opened" ? "💪" : "❌";
-    const line = item.payload.pull_request.merged
-      ? "🎉 Merged"
-      : `${emoji} ${capitalize(item.payload.action)}`;
-    return `${line} PR ${toUrlFormat(item)} in ${toUrlFormat(item.repo.name)}`;
+    return `${emoji} ${capitalize(action)} PR ${toUrlFormat(item)} in ${toUrlFormat(
+      item.repo?.name || "unknown repository",
+    )}`;
   },
   ReleaseEvent: (item) => {
     return `🚀 ${capitalize(item.payload.action)} release ${toUrlFormat(
       item,
-    )} in ${toUrlFormat(item.repo.name)}`;
+    )} in ${toUrlFormat(item.repo?.name || "unknown repository")}`;
   },
 };
 
+/**
+ * Main function executed by the Toolkit
+ */
 Toolkit.run(
   async (tools) => {
     tools.log.debug(`Getting activity for ${GH_USERNAME}`);
+
+    const github = tools.github;
+    github.authenticate({
+      type: "token",
+      token: GITHUB_TOKEN,
+    });
+    
     const events = await tools.github.activity.listPublicEventsForUser({
       username: GH_USERNAME,
       per_page: 100,
     });
-    tools.log.debug(
-      `Activity for ${GH_USERNAME}, ${events.data.length} events found.`,
-    );
+
+    tools.log.debug(`Activity for ${GH_USERNAME}, ${events.data.length} events found.`);
 
     const content = events.data
-      // Filter out any boring activity
-      .filter((event) => serializers.hasOwnProperty(event.type))
-      // We only have five lines to work with
-      .slice(0, MAX_LINES)
-      // Call the serializer to construct a string
-      .map((item) => serializers[item.type](item));
+      .filter((event) => serializers.hasOwnProperty(event.type)) // Filter interesting events
+      .slice(0, MAX_LINES) // Limit lines
+      .map((item) => serializers[item.type](item)); // Serialize content
 
-    const readmeContent = fs
-      .readFileSync(`./${TARGET_FILE}`, "utf-8")
-      .split("\n");
-
-    // Find the index corresponding to <!--START_SECTION:activity--> comment
-    let startIdx = readmeContent.findIndex(
-      (content) => content.trim() === "<!--START_SECTION:activity-->",
-    );
-
-    // Early return in case the <!--START_SECTION:activity--> comment was not found
-    if (startIdx === -1) {
-      return tools.exit.failure(
-        `Couldn't find the <!--START_SECTION:activity--> comment. Exiting!`,
-      );
+    let readmeContent;
+    try {
+      readmeContent = fs.readFileSync(`./${TARGET_FILE}`, "utf-8").split("\n");
+    } catch (err) {
+      return tools.exit.failure(`Failed to read ${TARGET_FILE}: ${err.message}`);
     }
 
-    // Find the index corresponding to <!--END_SECTION:activity--> comment
+    const startIdx = readmeContent.findIndex(
+      (line) => line.trim() === "<!--START_SECTION:activity-->",
+    );
+
     const endIdx = readmeContent.findIndex(
-      (content) => content.trim() === "<!--END_SECTION:activity-->",
+      (line) => line.trim() === "<!--END_SECTION:activity-->",
     );
 
-    if (content.length == 0) {
-      tools.log.info("Found no activity.");
-
-      try {
-        const message = await createEmptyCommit();
-        tools.exit.success(message);
-      } catch (err) {
-        return tools.exit.failure(err.message);
-      }
+    if (startIdx === -1) {
+      return tools.exit.failure("Couldn't find <!--START_SECTION:activity--> comment.");
     }
 
-    if (content.length < 5) {
-      tools.log.info("Found less than 5 activities");
-    }
-
+    const newContent = content.map((line, idx) => `${idx + 1}. ${line}`).join("\n");
     if (startIdx !== -1 && endIdx === -1) {
-      startIdx++;
-      content.forEach((line, idx) =>
-        readmeContent.splice(startIdx + idx, 0, `${idx + 1}. ${line}`),
-      );
-
-      // Append <!--END_SECTION:activity--> comment
-      readmeContent.splice(
-        startIdx + content.length,
-        0,
-        "<!--END_SECTION:activity-->",
-      );
-
-      // Update README
-      fs.writeFileSync(`./${TARGET_FILE}`, readmeContent.join("\n"));
-
-      // Commit to the remote repository
-      try {
-        await commitFile();
-      } catch (err) {
-        return tools.exit.failure(err.message);
-      }
-      tools.exit.success("Wrote to README");
-    }
-
-    const oldContent = readmeContent.slice(startIdx + 1, endIdx).join("\n");
-    const newContent = content
-      .map((line, idx) => `${idx + 1}. ${line}`)
-      .join("\n");
-
-    if (oldContent.trim() === newContent.trim())
-      tools.exit.success("No changes detected");
-
-    startIdx++;
-
-    const readmeActivitySection = readmeContent.slice(startIdx, endIdx);
-    if (!readmeActivitySection.length) {
-      content.some((line, idx) => {
-        if (!line) {
-          return true;
-        }
-        readmeContent.splice(startIdx + idx, 0, `${idx + 1}. ${line}`);
-      });
-      tools.log.success(`Wrote to ${TARGET_FILE}`);
+      readmeContent.splice(startIdx + 1, 0, ...content.map((line, idx) => `${idx + 1}. ${line}`));
+      readmeContent.splice(startIdx + content.length + 1, 0, "<!--END_SECTION:activity-->");
     } else {
-      let count = 0;
-
-      readmeActivitySection.some((line, idx) => {
-        if (!content[count]) {
-          return true;
-        }
-        if (line !== "") {
-          readmeContent[startIdx + idx] = `${count + 1}. ${content[count]}`;
-          count++;
-        }
-      });
-      tools.log.success(`Updated ${TARGET_FILE} with the recent activity`);
+      readmeContent.splice(startIdx + 1, endIdx - startIdx - 1, ...content);
     }
 
-    // Update README
     fs.writeFileSync(`./${TARGET_FILE}`, readmeContent.join("\n"));
 
-    // Commit to the remote repository
     try {
       await commitFile();
     } catch (err) {
-      return tools.exit.failure(err.message);
+      return tools.exit.failure(`Failed to push changes: ${err.message}`);
     }
-    tools.exit.success("Pushed to remote repository");
+
+    tools.exit.success("README updated and changes pushed.");
   },
   {
     event: ["schedule", "workflow_dispatch"],
