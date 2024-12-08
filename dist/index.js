@@ -32753,6 +32753,7 @@ var TARGET_FILE = core.getInput("target-file");
 var EMPTY_COMMIT_MSG = core.getInput("empty-commit-msg");
 var GITHUB_TOKEN = core.getInput("token") || process.env.GITHUB_TOKEN;
 var DEBUG = core.getInput("debug") === "true";
+core.debug(`Using token: ${GITHUB_TOKEN}`);
 var exec = (cmd, args = []) => new Promise((resolve, reject) => {
   const app = spawn(cmd, args);
   let stdout = "";
@@ -32827,7 +32828,10 @@ Toolkit.run(
     }
     const newContent = content.map((line, idx) => `${idx + 1}. ${line}`).join("\n");
     readmeContent.splice(startIdx + 1, endIdx - startIdx - 1, newContent);
-    fs.writeFileSync(`./${TARGET_FILE}`, readmeContent.join("\n"));
+    fs.writeFileSync(`${TARGET_FILE}`, readmeContent.join("\n"));
+    console.log(`:: Actual Output ::
+`);
+    console.dir(readmeContent);
     try {
       await commitFile();
     } catch (err) {
@@ -32836,8 +32840,8 @@ Toolkit.run(
     tools.exit.success("Readme or Markdown Changes Committed.");
   },
   {
-    event: ["schedule", "workflow_dispatch"],
-    secrets: [GITHUB_TOKEN]
+    event: [],
+    secrets: []
   }
 );
 var capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
