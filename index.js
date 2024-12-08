@@ -2,16 +2,16 @@ const core = require("@actions/core");
 const fs = require("fs");
 const { spawn } = require("child_process");
 const { Toolkit } = require("actions-toolkit");
-
 const GH_USERNAME = core.getInput("username");
 const COMMIT_NAME = core.getInput("committer");
 const COMMIT_EMAIL = core.getInput("committer-email");
 const COMMIT_MSG = core.getInput("commit-msg");
-const MAX_LINES = parseInt(core.getInput("max-lines"), 10); // Ensure it's a number
+const MAX_LINES = parseInt(core.getInput("max-lines"), 10);
 const TARGET_FILE = core.getInput("target-file");
 const EMPTY_COMMIT_MSG = core.getInput("empty-commit-msg");
 const GITHUB_TOKEN = core.getInput("token") || process.env.GITHUB_TOKEN;
 const DEBUG = core.getInput("debug") === "true";
+core.debug(`Using token: ${GITHUB_TOKEN}`);
 
 /**
  * Executes a shell command
@@ -45,7 +45,7 @@ const exec = (cmd, args = []) =>
  * @returns {Promise<void>}
  */
 const commitFile = async (emptyCommit = false) => {
-  await exec("git", ["config", "user.email", COMMIT_EMAIL]); // Local configuration
+  await exec("git", ["config", "user.email", COMMIT_EMAIL]);
   await exec("git", ["config", "user.name", COMMIT_NAME]);
 
   if (emptyCommit) {
@@ -117,9 +117,7 @@ const serializers = {
 Toolkit.run(
   async (tools) => {
     tools.log.debug(`Getting activity for ${GH_USERNAME}`);
-
     const github = tools.github;
-
     const events = await github.activity.listPublicEventsForUser({
       username: GH_USERNAME,
       per_page: 100,
@@ -154,7 +152,9 @@ Toolkit.run(
     const newContent = content.map((line, idx) => `${idx + 1}. ${line}`).join("\n");
     readmeContent.splice(startIdx + 1, endIdx - startIdx - 1, newContent);
 
-    fs.writeFileSync(`./${TARGET_FILE}`, readmeContent.join("\n"));
+    fs.writeFileSync(`${TARGET_FILE}`, readmeContent.join("\n"));
+    console.log(`:: Actual Output ::\n`);
+    console.dir(readmeContent);
 
     try {
       await commitFile();
@@ -165,7 +165,7 @@ Toolkit.run(
     tools.exit.success("Readme or Markdown Changes Committed.");
   },
   {
-    event: ["schedule", "workflow_dispatch"],
+    event: [],
     secrets: [GITHUB_TOKEN],
   },
 );
