@@ -1,79 +1,64 @@
-# GitHub Activity in Readme
+# Auto User Activity
 
-Fetch and Updates Your Readme Markdown with the Recent GitHub activity of a github user.
+This GitHub Action automatically fetches and updates the recent activity of a GitHub user in the specified markdown file (e.g., `README.md`).
 
-## Instructions
+## Features
 
-- Add the comment `<!--START_SECTION:activity-->` (entry point) within the `README.md`.
+- Fetches up to a specified number of recent activities from the user's GitHub profile.
+- Updates the designated markdown file between the specified comment tags.
+- Supports empty commits to keep the workflow active after prolonged inactivity.
+- Provides detailed debugging options for verbose logging.
 
-- Add the comment `<!--END_SECTION:activity-->` (exit point) withing the `README.md`.
+---
 
-```yml
-name: Update Activity
+## Recent Activity
+
+<!--START_SECTION:activity-->
+1. No recent activity to show.
+<!--END_SECTION:activity-->
+
+---
+
+## Inputs
+
+The action supports the following input parameters:
+
+| Name            | Description                                            | Default                           |
+|-----------------|-------------------------------------------------------|-----------------------------------|
+| `token`         | Your GitHub PAT or Auth Token                         | `${{ secrets.GITHUB_TOKEN }}`    |
+| `username`      | The GitHub username to fetch activity for             | `${{ github.repository_owner }}` |
+| `committer`     | The name of the committer                             | `github-actions[bot]`            |
+| `committer-email` | The email of the committer                          | `github-actions[bot]@users.noreply.github.com` |
+| `commit-msg`    | Commit message for changes                           | `:zap: Update README with recent activity` |
+| `max-lines`     | The maximum number of activity entries to show       | `5`                               |
+| `target-file`   | The markdown file to update                          | `README.md`                       |
+| `empty-commit-msg` | Message for empty commits (no activity)            | `:memo: empty commit to keep workflow active` |
+| `debug`         | Enable verbose logging (set `true` or `false`)        | `false`                           |
+
+## Example Workflow
+
+Here is an example of how to configure the action in your repository:
+
+```yaml
+name: Update GitHub Activity
+
 on:
   schedule:
-    - cron: "30 1 * * *"
-  workflow_dispatch:
+    - cron: "0 * * * *" # Runs hourly
+  workflow_dispatch: # Allows manual trigger
+
 jobs:
-  build:
-    name: Update Recent Activity
+  update-activity:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-      - uses: actions/checkout@v4
-      - uses: offensive-vk/auto-user-activity@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-The above job runs every half an hour, you can change it as you wish based on the [cron syntax](https://jasonet.co/posts/scheduled-actions/#the-cron-syntax).
-
-Please note that only those public events that belong to the following list show up:-
-
-- `IssueEvent`
-- `ReleaseEvent`
-- `IssueCommentEvent`
-- `PullRequestEvent`
-
-You can find an example [here](https://github.com/offensive-vk/auto-user-activity/blob/master/.github/workflows/test.yml).
-
-### Override defaults
-
-Use the following `input params` to customize it for your use case:-
-
-| Input Param        | Default Value                                                            | Description                                               |
-| ------------------ | ------------------------------------------------------------------------ | --------------------------------------------------------- |
-| `username`      | Your GitHub username                                                     | Username for which to generate the activity overview      |
-| `committer`      | github-actions[bot]                                                      | Name of the committer                                     |
-| `committer-email`     | 41898282+github-actions[bot]@users.noreply.github.com                    | Email of the committer                                    |
-| `commit-msg`       | :zap: Update README with the recent activity                             | Commit message used while committing to the repo          |
-| `empty-commit-msg` | :memo: empty commit to keep workflow active after 60 days of no activity | Commit message used when there are no updates             |
-| `max-lines`        | 5                                                                        | The maximum number of lines populated in your readme file |
-| `target-file`      | README.md                                                                | The file to insert recent activity into                   |
-| `token` | ${{ secrets.GITHUB_TOKEN }} | Your Github Token or PAT to commit the changes. | 
-
-```yml
-name: Update Readme
-on:
-  schedule:
-    - cron: "0 */2 * * *"
-  workflow_dispatch:
-jobs:
-  build:
-    name: Update Activity
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: offensive-vk/auto-user-activity@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Auto User Activity
+        uses: offensive-vk/auto-user-activity@v1
         with:
-          COMMIT_MSG: "Specify a custom commit message"
-          MAX_LINES: 10
-          COMMIT_NAME: GitHub Activity Readme
+          token: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ github.repository_owner }}
+          commit-msg: ":zap: Updated activity in README"
+          debug: true
 ```
