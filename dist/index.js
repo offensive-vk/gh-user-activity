@@ -23920,7 +23920,7 @@ var capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
       });
       const serializers = {
         IssueCommentEvent: (item) => {
-          return `\u{1F5E3} Commented on issue [#${item.payload.issue.number}](https://github.com/${item.repo.name}/issues/${item.payload.issue.number}) in ${item.repo.name}`;
+          return `\u{1F5E3} Commented on issue [#${item.payload.issue.number}](https://github.com/${item.repo.name}/issues/${item.payload.issue.number}) in [${item.repo.name}](https://github.com/${item.repo.name})`;
         },
         IssuesEvent: (item) => {
           const actionMap = {
@@ -23929,12 +23929,12 @@ var capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
             closed: "\u{1F512} Closed"
           };
           const action = actionMap[item.payload.action] || capitalize(item.payload.action);
-          return `${action} issue [#${item.payload.issue.number}](https://github.com/${item.repo.name}/issues/${item.payload.issue.number}) in ${item.repo.name}`;
+          return `${action} issue [#${item.payload.issue.number}](https://github.com/${item.repo.name}/issues/${item.payload.issue.number}) in [${item.repo.name}](https://github.com/${item.repo.name})`;
         },
         PullRequestEvent: (item) => {
-          const action = item.payload.pull_request.merged ? "\u{1F389} Merged" : capitalize(item.payload.action);
+          const action = item.payload.pull_request.merged ? " Merged" : capitalize(item.payload.action);
           const emoji = item.payload.pull_request.merged ? "\u{1F389}" : item.payload.action === "opened" ? "\u{1F4AA}" : "\u274C";
-          return `${emoji} ${action} pull request [#${item.payload.pull_request.number}](https://github.com/${item.repo.name}/pull/${item.payload.pull_request.number}) in ${item.repo.name}`;
+          return `${emoji} ${action} pull request [#${item.payload.pull_request.number}](https://github.com/${item.repo.name}/pull/${item.payload.pull_request.number}) in [${item.repo.name}](https://github.com/${item.repo.name})`;
         },
         PullRequestReviewEvent: (item) => {
           const stateMap = {
@@ -23943,10 +23943,10 @@ var capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
             commented: "\u{1F4AC} Commented"
           };
           const state = stateMap[item.payload.review.state] || capitalize(item.payload.review.state);
-          return `${state} on pull request [#${item.payload.pull_request.number}](https://github.com/${item.repo.name}/pull/${item.payload.pull_request.number}) in ${item.repo.name}`;
+          return `${state} on pull request [#${item.payload.pull_request.number}](https://github.com/${item.repo.name}/pull/${item.payload.pull_request.number}) in [${item.repo.name}](https://github.com/${item.repo.name})`;
         },
         ReleaseEvent: (item) => {
-          return `\u{1F680} ${capitalize(item.payload.action)} release [${item.payload.release.tag_name}](https://github.com/${item.repo.name}/releases/tag/${item.payload.release.tag_name}) in ${item.repo.name}`;
+          return `\u{1F680} ${capitalize(item.payload.action)} release [${item.payload.release.tag_name}](https://github.com/${item.repo.name}/releases/tag/${item.payload.release.tag_name}) in [${item.repo.name}](https://github.com/${item.repo.name})`;
         }
       };
       const content = events.data.filter((event) => serializers.hasOwnProperty(event.type)).slice(0, maxLines).map((item) => serializers[item.type](item));
