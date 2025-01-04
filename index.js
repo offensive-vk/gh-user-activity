@@ -60,8 +60,6 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
     const emptyCommitMsg = core.getInput("empty-commit-msg");
     const enableEmptyCommit = core.getInput("enable-empty-commit") === "true";
     const debug = core.getInput("debug") === "true";
-
-    // GitHub context
     const { owner, repo } = github.context.repo;
     const octokit = github.getOctokit(token);
 
@@ -183,14 +181,12 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
       readmeContent.splice(startIdx + 1, endIdx - startIdx - 1, newContent);
 
       fs.writeFileSync(targetFile, readmeContent.join("\n"));
-      core.info("Activity section updated successfully.");
+      core.info("Activity Updated Successfully.");
 
       await commitFile();
     };
-
     await createEmptyCommit();
     await updateActivitySection();
-    core.info("Workflow completed successfully.");
     console.log(`
       --------------------------------------------------------------
       🎉 Success!
