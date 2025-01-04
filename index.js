@@ -155,14 +155,21 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
       const content = events.data
         .filter((event) => serializers.hasOwnProperty(event.type))
-        .slice(0, maxLines)
+        .slice(0, maxLines || 10)
         .map((item) => serializers[item.type](item));
 
       let readmeContent;
+      const dataToWrite = `<!--START_SECTION:activity-->\n Sample Text \n<!--END_SECTION:activity-->`
       try {
         readmeContent = fs.readFileSync(`./${targetFile}`, "utf-8").split("\n");
-      } catch (err) {
-        throw new Error(`Failed to read ${targetFile}: ${err.message}`);
+      } catch (err) {        
+        fs.writeFile(targetFile, dataToWrite, (err) => {
+          if (err) {
+            core.info('Error writing to file:', err);
+          } else {
+            console.log(`File ${targetFile} written successfully!`);
+          }
+        });
       }
 
       const startIdx = readmeContent.findIndex(
