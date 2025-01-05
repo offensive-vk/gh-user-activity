@@ -64,6 +64,17 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
     const octokit = github.getOctokit(token);
 
     /**
+     * Ensures the target file exists, creating it if necessary.
+     */
+    const ensureFileExists = (filePath) => {
+      if (!fs.existsSync(filePath)) {
+        const initialContent = `<!--START_SECTION:activity-->\n<!--END_SECTION:activity-->`;
+        fs.writeFileSync(filePath, initialContent, "utf-8");
+        core.info(`File ${filePath} created successfully.`);
+      }
+    };
+
+    /**
      * Makes a commit to the repository.
      * @param {boolean} emptyCommit - Whether to make an empty commit.
      */
@@ -115,6 +126,8 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
      * Updates the target file with the latest activity.
      */
     const updateActivitySection = async () => {
+      ensureFileExists(targetFile);
+
       const events = await octokit.rest.activity.listPublicEventsForUser({
         username,
         per_page: 100,
@@ -152,35 +165,17 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
         },
       };
 
-
       const content = events.data
         .filter((event) => serializers.hasOwnProperty(event.type))
         .slice(0, maxLines || 10)
         .map((item) => serializers[item.type](item));
 
-      let readmeContent;
-      const dataToWrite = `<!--START_SECTION:activity-->\n Sample Text \n<!--END_SECTION:activity-->`
-      exec(`echo ${dataToWrite} >> ${targetFile}`);
-      try {
-        readmeContent = fs.readFileSync(`./${targetFile}`, "utf-8").split("\n");
-      } catch (err) {        
-        fs.writeFile(targetFile, dataToWrite, (err) => {
-          if (err) {
-            core.info('Error writing to file:', err);
-          } else {
-            core.info(`File ${targetFile} written successfully!`);
-          }
-        });
-      } finally {
-        readmeContent = fs.readFileSync(`${targetFile}`, 'utf-8').split("\n")
-      }
-
-      const startIdx = readmeContent.findIndex(
-        (line) => line.trim() === "<!--START_SECTION:activity-->",
+      const fileContent = fs.readFileSync(targetFile, "utf-8").split("\n");
+      const startIdx = fileContent.findIndex(
+        (line) => line.trim() === "<!--START_SECTION:activity-->"
       );
-
-      const endIdx = readmeContent.findIndex(
-        (line) => line.trim() === "<!--END_SECTION:activity-->",
+      const endIdx = fileContent.findIndex(
+        (line) => line.trim() === "<!--END_SECTION:activity-->"
       );
 
       if (startIdx === -1 || endIdx === -1) {
@@ -188,13 +183,14 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
       }
 
       const newContent = content.map((line, idx) => `${idx + 1}. ${line}`).join("\n");
-      readmeContent.splice(startIdx + 1, endIdx - startIdx - 1, newContent);
+      fileContent.splice(startIdx + 1, endIdx - startIdx - 1, newContent);
 
-      fs.writeFileSync(targetFile, readmeContent.join("\n"));
+      fs.writeFileSync(targetFile, fileContent.join("\n"));
       core.info("Activity Updated Successfully.");
 
       await commitFile();
     };
+
     await createEmptyCommit();
     await updateActivitySection();
     console.log(`

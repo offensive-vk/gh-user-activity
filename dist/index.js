@@ -23880,6 +23880,14 @@ var capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
     const debug = core.getInput("debug") === "true";
     const { owner, repo } = github.context.repo;
     const octokit = github.getOctokit(token);
+    const ensureFileExists = (filePath) => {
+      if (!fs.existsSync(filePath)) {
+        const initialContent = `<!--START_SECTION:activity-->
+<!--END_SECTION:activity-->`;
+        fs.writeFileSync(filePath, initialContent, "utf-8");
+        core.info(`File ${filePath} created successfully.`);
+      }
+    };
     const commitFile = async (emptyCommit = false) => {
       await exec("git", ["config", "user.email", committerEmail]);
       await exec("git", ["config", "user.name", committerName]);
@@ -23914,6 +23922,7 @@ var capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
       }
     };
     const updateActivitySection = async () => {
+      ensureFileExists(targetFile);
       const events = await octokit.rest.activity.listPublicEventsForUser({
         username,
         per_page: 100
@@ -23950,35 +23959,19 @@ var capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
         }
       };
       const content = events.data.filter((event) => serializers.hasOwnProperty(event.type)).slice(0, maxLines || 10).map((item) => serializers[item.type](item));
-      let readmeContent;
-      const dataToWrite = `<!--START_SECTION:activity-->
- Sample Text 
-<!--END_SECTION:activity-->`;
-      try {
-        readmeContent = fs.readFileSync(`./${targetFile}`, "utf-8").split("\n");
-      } catch (err) {
-        fs.writeFile(targetFile, dataToWrite, (err2) => {
-          if (err2) {
-            core.info("Error writing to file:", err2);
-          } else {
-            core.info(`File ${targetFile} written successfully!`);
-          }
-        });
-      } finally {
-        readmeContent = fs.readFileSync(`${targetFile}`, "utf-8").split("\n");
-      }
-      const startIdx = readmeContent.findIndex(
+      const fileContent = fs.readFileSync(targetFile, "utf-8").split("\n");
+      const startIdx = fileContent.findIndex(
         (line) => line.trim() === "<!--START_SECTION:activity-->"
       );
-      const endIdx = readmeContent.findIndex(
+      const endIdx = fileContent.findIndex(
         (line) => line.trim() === "<!--END_SECTION:activity-->"
       );
       if (startIdx === -1 || endIdx === -1) {
         throw new Error("Couldn't find activity section comments.");
       }
       const newContent = content.map((line, idx) => `${idx + 1}. ${line}`).join("\n");
-      readmeContent.splice(startIdx + 1, endIdx - startIdx - 1, newContent);
-      fs.writeFileSync(targetFile, readmeContent.join("\n"));
+      fileContent.splice(startIdx + 1, endIdx - startIdx - 1, newContent);
+      fs.writeFileSync(targetFile, fileContent.join("\n"));
       core.info("Activity Updated Successfully.");
       await commitFile();
     };
