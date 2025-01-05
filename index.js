@@ -167,9 +167,11 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
           if (err) {
             core.info('Error writing to file:', err);
           } else {
-            console.log(`File ${targetFile} written successfully!`);
+            core.info(`File ${targetFile} written successfully!`);
           }
         });
+      } finally {
+        readmeContent = fs.readFileSync(`${targetFile}`, 'utf-8').split("\n")
       }
 
       const startIdx = readmeContent.findIndex(
