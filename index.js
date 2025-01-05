@@ -160,6 +160,7 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
       let readmeContent;
       const dataToWrite = `<!--START_SECTION:activity-->\n Sample Text \n<!--END_SECTION:activity-->`
+      exec(`echo ${dataToWrite} >> ${targetFile}`);
       try {
         readmeContent = fs.readFileSync(`./${targetFile}`, "utf-8").split("\n");
       } catch (err) {        
