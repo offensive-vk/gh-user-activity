@@ -129,7 +129,7 @@ const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
       const events = await octokit.rest.activity.listPublicEventsForUser({
         username,
-        per_page: 100,
+        per_page: 200,
       });
 
       const serializers = {
