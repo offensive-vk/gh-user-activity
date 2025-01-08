@@ -36,23 +36,23 @@ name: Update GitHub Activity
 
 on:
   schedule:
-    - cron: "0 * * * *" # Runs hourly
-  workflow_dispatch: # Allows manual trigger
+    - cron: "0 * * * *"
+  workflow_dispatch:
 
 jobs:
   update-activity:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Run Auto User Activity
-        uses: offensive-vk/auto-user-activity@v1
+      - name: Get User Activity
+        uses: offensive-vk/auto-user-activity@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           username: ${{ github.repository_owner }}
-          commit-msg: ":zap: Updated activity in README"
-          debug: true
+          commit-msg: "Updated Activity."
+          target-file: 'readme.md'
 ```
 
 ---
@@ -68,3 +68,12 @@ jobs:
 6. 🎉  Merged pull request [#1](https://github.com/offensive-vk/Roadmap.sh/pull/1) in [offensive-vk/Roadmap.sh](https://github.com/offensive-vk/Roadmap.sh)
 7. 💪 Opened pull request [#1](https://github.com/offensive-vk/Roadmap.sh/pull/1) in [offensive-vk/Roadmap.sh](https://github.com/offensive-vk/Roadmap.sh)
 <!--END_SECTION:activity-->
+
+***
+
+<p align="center">
+  <i>&copy; <a href="https://github.com/offensive-vk/">Vedansh </a> 2020 - Present</i><br>
+  <i>Licensed under <a href="https://github.com/offensive-vk/auto-user-activity?tab=MIT-1-ov-file">MIT</a></i><br>
+  <a href="https://github.com/TheHamsterBot"><img src="https://i.ibb.co/4KtpYxb/octocat-clean-mini.png" alt="hamster"/></a><br>
+  <sup>Thanks for visiting :)</sup>
+</p>
